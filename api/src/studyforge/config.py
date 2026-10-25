@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "unsafe-development-secret-change-me"
     jwt_expire_minutes: int = 720
     gemini_api_key: str | None = None
-    gemma_model_id: str = "gemma-3-27b-it"
+    gemma_model_id: str = "gemma-4-26b-a4b-it"
     document_vision_model_id: str = "gemini-2.5-flash"
     api_cors_origins: str = "http://localhost:3000"
     max_source_chars: int = 100000

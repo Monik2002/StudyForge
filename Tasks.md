@@ -23,7 +23,7 @@
 - [x] Validate question type, option IDs, answer IDs, and explanations.
 - [x] Save generated sets as drafts.
 - [x] Add draft review and approval UI.
-- [ ] Test configured model/key and quota end-to-end.
+- [x] Verify a live Gemma 4 API request, JSON parsing, and question schema validation.
 - [ ] Add prompt-injection and factual-grounding evaluation set.
 - [ ] Add deduplication, retry policy, cost telemetry, quotas, and async jobs.
 - [ ] Add malware scanning, private object storage, background extraction jobs, and richer PDF/DOCX extraction tests.
