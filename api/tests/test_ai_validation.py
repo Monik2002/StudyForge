@@ -165,8 +165,58 @@ def test_generate_questions_reports_provider_failure_without_credentials(monkeyp
         ai.generate_questions("Study notes with enough content.", "Course", 1, ["single_choice"], "easy")
 
     assert "RuntimeError" in str(error.value)
-    assert "GEMMA_MODEL_ID model access" in str(error.value)
+    assert "GEMMA_MODEL_ID" in str(error.value)
     assert secret not in str(error.value)
+
+
+def test_extract_document_uses_explicit_multimodal_content(monkeypatch):
+    request = {}
+
+    class FakeModels:
+        def generate_content(self, **kwargs):
+            request.update(kwargs)
+            return SimpleNamespace(text="Extracted notes with enough readable content.")
+
+    monkeypatch.setattr(ai.settings, "gemini_api_key", "test-key")
+    monkeypatch.setattr(ai.settings, "document_vision_model_id", "gemini-2.5-flash")
+    monkeypatch.setattr(ai.genai, "Client", lambda **kwargs: SimpleNamespace(models=FakeModels()))
+
+    text = ai.extract_document_content("notes.pdf", b"%PDF test", "application/pdf")
+
+    content = request["contents"][0]
+    assert text == "Extracted notes with enough readable content."
+    assert request["model"] == "gemini-2.5-flash"
+    assert isinstance(content, ai.types.Content)
+    assert content.role == "user"
+    assert len(content.parts) == 2
+    assert content.parts[0].text.startswith("Extract comprehensive study notes")
+    assert content.parts[1].inline_data.mime_type == "application/pdf"
+
+
+def test_extract_document_404_names_model_and_setting_without_leaking_error(monkeypatch):
+    secret = "do-not-leak-this-key"
+
+    class ProviderNotFound(Exception):
+        code = 404
+
+    class FakeModels:
+        def generate_content(self, **kwargs):
+            raise ProviderNotFound(f"404 for {secret}")
+
+    monkeypatch.setattr(ai.settings, "gemini_api_key", secret)
+    monkeypatch.setattr(ai.settings, "document_vision_model_id", "invalid-test-model")
+    monkeypatch.setattr(ai.genai, "Client", lambda **kwargs: SimpleNamespace(models=FakeModels()))
+
+    with pytest.raises(AIProviderError) as error:
+        ai.extract_document_content("notes.pdf", b"%PDF test", "application/pdf")
+
+    message = str(error.value)
+    assert "provider status 404" in message
+    assert "DOCUMENT_VISION_MODEL_ID" in message
+    assert "invalid-test-model" in message
+    assert "available to this API project" in message
+    assert secret not in message
+    assert "404 for" not in message
 
 
 def test_generate_questions_rejects_malformed_json(monkeypatch):
