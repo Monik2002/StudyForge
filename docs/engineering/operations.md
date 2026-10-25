@@ -39,13 +39,15 @@ container and place it in the same region as the backend when possible.
    a new deployment so the Next.js build receives `NEXT_PUBLIC_API_URL` and the API
    process receives its settings. Add the final production frontend origin to
    `API_CORS_ORIGINS` and redeploy the backend if that origin changes.
-7. Test the deployed URL in order: register a new test account, log in, create a
-   course, add text notes, upload a PDF/image under 20 MiB, generate questions, review
-   and approve the question set, start practice and check feedback, start a timed exam,
-   submit it, then confirm results and solutions appear as intended.
+7. Test the deployed URL in order: register a synthetic test account, log in, create a
+   course, add text notes, upload a file under 20 MiB, review the extracted text before
+   explicitly generating questions, review and approve the question set, start practice
+   and check feedback, start a timed exam, submit it, then confirm results and solutions
+   appear as intended.
 
-The existing upload path reads at most 20 MiB plus one byte into memory, extracts the
-document content, and stores the extracted text in PostgreSQL. It does not persist the
+The upload path reads at most 20 MiB plus one byte into memory, extracts the document
+content, returns the extracted text for owner review, and stores the extracted text in
+PostgreSQL. Question generation is a separate explicit request after that review. It does not persist the
 original file to container-local storage, so container restarts do not lose an uploaded
 file required by this workflow. File malware scanning, object storage, rate limiting,
 login throttling, email verification, and background generation remain production

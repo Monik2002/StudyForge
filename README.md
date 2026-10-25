@@ -36,7 +36,7 @@ Detailed engineering references remain in `docs/`.
 ## MVP features
 - Email/password registration and login.
 - Courses, pasted notes, and file uploads (PDF, DOCX, TXT, Markdown, PNG, JPG, WEBP; 20 MB maximum).
-- Vision-assisted extraction for PDF/image notes, including diagram and screenshot interpretation; extracted-content preview is intentionally omitted.
+- File uploads are extracted and saved before question generation; review the extracted text in the app before explicitly starting generation. PDF/image files and DOCX files with embedded images use Gemini vision and may consume API quota.
 - Gemma question generation, schema/domain validation, draft review and approval.
 - Practice mode with immediate feedback.
 - Timed exam mode, saved answers, question navigation, review flags, server-side deadline and post-submit results.

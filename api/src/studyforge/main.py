@@ -144,6 +144,7 @@ async def upload_source(cid: str, file: UploadFile = File(...), title: str | Non
         raise HTTPException(422, "The uploaded file is empty.")
     mime_by_suffix = {"pdf":"application/pdf", "docx":"application/vnd.openxmlformats-officedocument.wordprocessingml.document", "txt":"text/plain", "md":"text/markdown", "markdown":"text/markdown", "png":"image/png", "jpg":"image/jpeg", "jpeg":"image/jpeg", "webp":"image/webp"}
     mime = mime_by_suffix[suffix]
+    used_vision = suffix in {"pdf", "png", "jpg", "jpeg", "webp"}
     try:
         if suffix in {"txt", "md", "markdown"}:
             content = data.decode("utf-8-sig")
@@ -163,6 +164,7 @@ async def upload_source(cid: str, file: UploadFile = File(...), title: str | Non
                     image_data = archive.read(image_name)
                     image_mime = mimetypes.guess_type(image_name)[0]
                     if image_mime in {"image/png", "image/jpeg", "image/webp"}:
+                        used_vision = True
                         description = extract_document_content(image_name, image_data, image_mime)
                         chunks.append("\n[Visual content from embedded image " + image_name.rsplit("/", 1)[-1] + "]\n" + description)
             content = "\n".join(chunks)
@@ -182,7 +184,7 @@ async def upload_source(cid: str, file: UploadFile = File(...), title: str | Non
     source_title = (title or filename).strip()[:200]
     s = Source(course_id=cid, owner_user_id=u.id, title=source_title, content=content, content_sha256=hashlib.sha256(content.encode()).hexdigest())
     db.add(s); db.commit(); db.refresh(s)
-    return {"id":s.id,"course_id":cid,"title":s.title,"filename":filename,"content_sha256":s.content_sha256,"created_at":s.created_at,"extraction":"vision" if suffix in {"pdf","png","jpg","jpeg","webp"} else "text"}
+    return {"id":s.id,"course_id":cid,"title":s.title,"filename":filename,"content":content,"content_sha256":s.content_sha256,"created_at":s.created_at,"extraction":"vision" if used_vision else "text"}
 
 @app.get("/api/v1/courses/{cid}/question-sets")
 def list_sets(cid:str,db:Session=Depends(get_db),u:User=Depends(current_user)):
