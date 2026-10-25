@@ -49,8 +49,17 @@ def get_attempt(id,user,db):
     return a
 def attemptdict(a):
     rs={r.question_key:r for r in a.responses}
+    questions=[]
+    for q in a.question_snapshot:
+        response=rs.get(q["key"])
+        questions.append({
+            "id":q["key"],"key":q["key"],"ordinal":q["ordinal"],"qtype":q["qtype"],
+            "stem":q["stem"],"options":q["options"],
+            "selected_option_ids":response.selected_option_ids if response else [],
+            "is_flagged":response.is_flagged if response else False,
+        })
     return {"id":a.id,"mode":a.mode,"status":a.status,"started_at":a.started_at,"expires_at":a.expires_at,"duration_seconds":a.duration_seconds,
-    "questions":[{**qdict(q,False),"selected_option_ids":rs[q["key"]].selected_option_ids if q["key"] in rs else [],"is_flagged":rs[q["key"]].is_flagged if q["key"] in rs else False} for q in a.question_snapshot]}
+    "questions":questions}
 def finalize(db,a,expired=False):
     rs={r.question_key:r for r in a.responses}; earned=0
     for q in a.question_snapshot:
