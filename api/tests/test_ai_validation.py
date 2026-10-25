@@ -5,6 +5,7 @@ import pytest
 from studyforge import ai
 from studyforge.ai import AIProviderError, validate_question
 from studyforge.config import Settings
+from studyforge.db import normalize_database_url
 
 
 def test_gemma_4_default_and_document_model_are_separate(monkeypatch):
@@ -15,6 +16,107 @@ def test_gemma_4_default_and_document_model_are_separate(monkeypatch):
 
     assert config.gemma_model_id == "gemma-4-26b-a4b-it"
     assert config.document_vision_model_id == "gemini-2.5-flash"
+
+
+def test_production_settings_reject_development_defaults():
+    with pytest.raises(ValueError, match="Invalid production configuration"):
+        Settings(_env_file=None, app_env="production")
+
+
+def test_production_configuration_errors_do_not_include_credentials():
+    database_password = "database-password-sentinel"
+    jwt_secret = "jwt-secret-sentinel"
+    gemini_api_key = "gemini-key-sentinel"
+
+    with pytest.raises(ValueError) as error:
+        Settings(
+            _env_file=None,
+            app_env="production",
+            database_url=f"postgresql://user:{database_password}@db.example.test/studyforge",
+            jwt_secret=jwt_secret,
+            gemini_api_key=gemini_api_key,
+            api_cors_origins="*",
+        )
+
+    assert database_password not in str(error.value)
+    assert jwt_secret not in str(error.value)
+    assert gemini_api_key not in str(error.value)
+
+
+def test_production_settings_accept_explicit_origins_and_secrets():
+    config = Settings(
+        _env_file=None,
+        app_env="production",
+        database_url="postgresql://studyforge:encoded%40password@db.example.test/studyforge",
+        jwt_secret="random-production-secret-with-more-than-32-characters",
+        gemini_api_key="google-api-key",
+        api_cors_origins="https://studyforge.vercel.app",
+    )
+
+    assert config.cors_origins == ["https://studyforge.vercel.app"]
+
+
+def test_production_settings_reject_database_url_placeholders():
+    with pytest.raises(ValueError, match="DATABASE_URL"):
+        Settings(
+            _env_file=None,
+            app_env="production",
+            database_url="postgresql://<user>:<password>@<host>:5432/<database>",
+            jwt_secret="random-production-secret-with-more-than-32-characters",
+            gemini_api_key="google-api-key",
+            api_cors_origins="https://studyforge.vercel.app",
+        )
+
+
+def test_production_settings_reject_wildcard_or_non_origin_cors_values():
+    with pytest.raises(ValueError, match="API_CORS_ORIGINS"):
+        Settings(
+            _env_file=None,
+            app_env="production",
+            database_url="postgresql://user:password@db.example.test/studyforge",
+            jwt_secret="random-production-secret-with-more-than-32-characters",
+            gemini_api_key="google-api-key",
+            api_cors_origins="*",
+        )
+
+    with pytest.raises(ValueError, match="API_CORS_ORIGINS"):
+        Settings(
+            _env_file=None,
+            app_env="production",
+            database_url="postgresql://user:password@db.example.test/studyforge",
+            jwt_secret="random-production-secret-with-more-than-32-characters",
+            gemini_api_key="google-api-key",
+            api_cors_origins="https://studyforge.vercel.app/api",
+        )
+
+    with pytest.raises(ValueError, match="API_CORS_ORIGINS"):
+        Settings(
+            _env_file=None,
+            app_env="production",
+            database_url="postgresql://user:password@db.example.test/studyforge",
+            jwt_secret="random-production-secret-with-more-than-32-characters",
+            gemini_api_key="google-api-key",
+            api_cors_origins="https://studyforge.vercel.app/",
+        )
+
+    with pytest.raises(ValueError, match="API_CORS_ORIGINS"):
+        Settings(
+            _env_file=None,
+            app_env="production",
+            database_url="postgresql://user:password@db.example.test/studyforge",
+            jwt_secret="random-production-secret-with-more-than-32-characters",
+            gemini_api_key="google-api-key",
+            api_cors_origins="https://*.vercel.app",
+        )
+
+
+def test_database_url_uses_psycopg_and_decodes_encoded_credentials():
+    url = normalize_database_url(
+        "postgresql://studyforge:p%40ss%3Aword@db.example.test:5432/studyforge"
+    )
+
+    assert url.drivername == "postgresql+psycopg"
+    assert url.password == "p@ss:word"
 
 
 def test_generate_questions_uses_configured_model_and_parses_json(monkeypatch):

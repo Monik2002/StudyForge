@@ -1,4 +1,12 @@
-const API=process.env.NEXT_PUBLIC_API_URL||"http://localhost:8000/api/v1";
+const API=(process.env.NEXT_PUBLIC_API_URL??(process.env.NODE_ENV==="development"?"http://localhost:8000/api/v1":"")).replace(/\/+$/,"");
+function apiEndpoint(path:string){
+ if(!API)throw new Error("NEXT_PUBLIC_API_URL is not configured for this deployment.");
+ if(process.env.NODE_ENV==="production"){
+  let url:URL;try{url=new URL(API)}catch{throw new Error("NEXT_PUBLIC_API_URL must be an absolute HTTPS URL in production.")}
+  if(url.protocol!=="https:"||url.username||url.password)throw new Error("NEXT_PUBLIC_API_URL must be an absolute HTTPS URL in production.");
+ }
+ return `${API}${path}`;
+}
 export type Option={id:string;text:string};
 export type Question={id?:string;key?:string;ordinal:number;qtype:string;stem:string;options:Option[];correct_option_ids?:string[];explanation?:string;difficulty?:string;topic_tags?:string[];source_excerpt?:string;selected_option_ids?:string[];is_flagged?:boolean};
 export type Course={id:string;title:string;description:string;created_at:string};
@@ -9,13 +17,13 @@ export function getToken(){return typeof window==="undefined"?null:localStorage.
 export function setToken(t:string){localStorage.setItem("sf_token",t)}
 export function clearToken(){localStorage.removeItem("sf_token")}
 export async function api<T>(path:string,options:RequestInit={}):Promise<T>{
- const h=new Headers(options.headers);const t=getToken();if(t)h.set("Authorization",`Bearer ${t}`);if(options.body&&!h.has("Content-Type"))h.set("Content-Type","application/json");
- let r:Response;try{r=await fetch(`${API}${path}`,{...options,headers:h,cache:"no-store"})}catch{throw new Error("Could not reach the API. Check that the backend is running.")}
+ const endpoint=apiEndpoint(path);const h=new Headers(options.headers);const t=getToken();if(t)h.set("Authorization",`Bearer ${t}`);if(options.body&&!h.has("Content-Type"))h.set("Content-Type","application/json");
+ let r:Response;try{r=await fetch(endpoint,{...options,headers:h,cache:"no-store"})}catch{throw new Error("Could not reach the API. Check that the backend is running.")}
  if(!r.ok){let m=`Request failed (${r.status})`;try{const b=await r.json();m=typeof b.detail==="string"?b.detail:m}catch{}throw new Error(m)}return r.json()
 }
 
 export async function uploadFile<T>(path:string,file:File,title?:string):Promise<T>{
- const h=new Headers();const t=getToken();if(t)h.set("Authorization",`Bearer ${t}`);const body=new FormData();body.append("file",file);if(title)body.append("title",title);
- let r:Response;try{r=await fetch(`${API}${path}`,{method:"POST",headers:h,body,cache:"no-store"})}catch{throw new Error("Could not reach the API. Check that the backend is running.")}
+ const endpoint=apiEndpoint(path);const h=new Headers();const t=getToken();if(t)h.set("Authorization",`Bearer ${t}`);const body=new FormData();body.append("file",file);if(title)body.append("title",title);
+ let r:Response;try{r=await fetch(endpoint,{method:"POST",headers:h,body,cache:"no-store"})}catch{throw new Error("Could not reach the API. Check that the backend is running.")}
  if(!r.ok){let m=`Request failed (${r.status})`;try{const b=await r.json();m=typeof b.detail==="string"?b.detail:m}catch{}throw new Error(m)}return r.json()
 }

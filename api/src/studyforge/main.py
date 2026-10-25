@@ -3,7 +3,8 @@ from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import select
+from sqlalchemy import select, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 from jose import jwt, JWTError
 from passlib.context import CryptContext
@@ -17,9 +18,17 @@ app=FastAPI(title="StudyForge API",version="0.1.0")
 app.add_middleware(CORSMiddleware,allow_origins=settings.cors_origins,allow_credentials=True,allow_methods=["*"],allow_headers=["*"])
 pwd=CryptContext(schemes=["bcrypt"],deprecated="auto"); bearer=HTTPBearer(auto_error=False)
 @app.on_event("startup")
-def startup(): Base.metadata.create_all(bind=engine)
+def startup():
+    if settings.app_env.lower() != "production":
+        Base.metadata.create_all(bind=engine)
 @app.get("/health")
-def health(): return {"status":"ok","environment":settings.app_env}
+def health():
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        raise HTTPException(503, "Database unavailable") from None
+    return {"status":"ok"}
 def current_user(creds:HTTPAuthorizationCredentials|None=Depends(bearer),db:Session=Depends(get_db)):
     if not creds: raise HTTPException(401,"Authentication required")
     try: uid=jwt.decode(creds.credentials,settings.jwt_secret,algorithms=["HS256"]).get("sub")

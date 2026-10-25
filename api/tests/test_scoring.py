@@ -1,5 +1,40 @@
 from types import SimpleNamespace
+
+from fastapi import HTTPException
+import pytest
+from sqlalchemy.exc import SQLAlchemyError
+from studyforge import main
 from studyforge.main import attemptdict, finalize
+
+
+def test_health_check_returns_status_without_environment_details(monkeypatch):
+    class Connection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def execute(self, statement):
+            assert str(statement) == "SELECT 1"
+
+    monkeypatch.setattr(main.engine, "connect", lambda: Connection())
+
+    assert main.health() == {"status": "ok"}
+
+
+def test_health_check_reports_database_unavailable_without_details(monkeypatch):
+    def fail_to_connect():
+        raise SQLAlchemyError("sensitive connection details")
+
+    monkeypatch.setattr(main.engine, "connect", fail_to_connect)
+
+    with pytest.raises(HTTPException) as error:
+        main.health()
+
+    assert error.value.status_code == 503
+    assert error.value.detail == "Database unavailable"
+    assert "sensitive" not in error.value.detail
 
 
 def test_attemptdict_serializes_snapshot_without_revealing_answers():
