@@ -237,18 +237,23 @@ export default function AttemptPage() {
           className="confirm-dialog"
           aria-labelledby="submit-confirm-title"
           aria-describedby="submit-confirm-description"
-          onClose={(event) => {
-            const dialog = event.currentTarget;
-            if (dialog.returnValue === "submit") void submit();
-          }}
         >
           <h2 id="submit-confirm-title">Submit this exam?</h2>
           <p id="submit-confirm-description">
             You have answered {answeredCount} of {attempt!.questions.length} questions. Submitted answers will be graded and results revealed. You can’t change them afterward.
           </p>
           <div className="actions">
-            <button className="btn" type="button" onClick={() => confirmDialog.current?.close("cancel")}>Keep working</button>
-            <button className="btn primary" type="button" onClick={() => confirmDialog.current?.close("submit")}>Submit exam</button>
+            <button className="btn" type="button" onClick={() => confirmDialog.current?.close()}>Keep working</button>
+            <button
+              className="btn primary"
+              type="button"
+              onClick={() => {
+                confirmDialog.current?.close();
+                void submit();
+              }}
+            >
+              Submit exam
+            </button>
           </div>
         </dialog>
       )}
