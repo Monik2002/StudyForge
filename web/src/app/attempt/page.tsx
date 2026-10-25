@@ -23,7 +23,6 @@ export default function AttemptPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
-  const [confirmSubmit, setConfirmSubmit] = useState(false);
   const confirmDialog = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -52,13 +51,6 @@ export default function AttemptPage() {
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
   }, [attempt]);
-
-  useEffect(() => {
-    const dialog = confirmDialog.current;
-    if (!dialog) return;
-    if (confirmSubmit && !dialog.open) dialog.showModal();
-    else if (!confirmSubmit && dialog.open) dialog.close();
-  }, [confirmSubmit]);
 
   async function saveResponse(questionKey: string, selectedOptionIds: string[], flagged = flags[questionKey] || false) {
     await api(`/attempts/${id}/responses/${questionKey}`, {
@@ -233,7 +225,7 @@ export default function AttemptPage() {
             })}
           </div>
           <p>{answeredCount} of {attempt!.questions.length} answered</p>
-          <button className="btn primary" onClick={() => setConfirmSubmit(true)} disabled={busy}>
+          <button className="btn primary" onClick={() => confirmDialog.current?.showModal()} disabled={busy}>
             {busy ? "Submitting…" : "Submit assessment"}
           </button>
           <p>Exam answers are graded only after submission.</p>
@@ -247,7 +239,6 @@ export default function AttemptPage() {
           aria-describedby="submit-confirm-description"
           onClose={(event) => {
             const dialog = event.currentTarget;
-            setConfirmSubmit(false);
             if (dialog.returnValue === "submit") void submit();
           }}
         >
